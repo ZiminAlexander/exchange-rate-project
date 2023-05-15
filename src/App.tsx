@@ -57,9 +57,9 @@ const App = () => {
   );
 }
 
-const api = (baseCurrency?: string) => {
-  const app_id = "e70a7eeeb30b4858bd1a3961d6fac905";
-  const url = `https://openexchangerates.org/api/latest.json?app_id=${app_id}${(!!baseCurrency) ? ("&base=" + baseCurrency) : ""}`;
+const api = (baseCurrency: string) => {
+
+  const url = "https://api.exchangerate.host/latest?base=" + baseCurrency;
   const options: RequestInit = {
     method: "GET",
     headers: {
@@ -82,7 +82,7 @@ const TableCurrency = ({ currencyArray, baseCurrency, setbaseCurrency, baseCurre
         <thead>
           <tr>
             <th>Код Валюты</th>
-            <th>Курс в базовой валюте</th>
+            <th>Курс в {baseCurrency}</th>
           </tr>
         </thead>
         <tbody>
@@ -115,9 +115,6 @@ const CalculateCurrency = ({ baseCurrencyOptions }: { baseCurrencyOptions: React
   const [secondCurrency, setSecondCurrency] = useState("USD");
   const [dataOfCurrency, setDataOfCurrency] = useState({ rates: {} });
   const [secondCurrencyValue, setSecondCurrencyValue] = useState(0.00);
-
-
-
   const splitDataOfCurrency: [string, number][] = Object.entries(dataOfCurrency.rates);
 
   const findRate = (): number => {
