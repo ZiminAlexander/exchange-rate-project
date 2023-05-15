@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Route, Switch, Redirect, Link } from "react-router-dom";
 import './App.css';
-// import { ANSWEROFSERVER } from './ANSWEROFSERVER';
+import { Button, Table, Select, Input } from "antd";
 
 const App = () => {
 
   const [dataOfCurrency, setData] = useState({ rates: {} });
   const [baseCurrency, setbaseCurrency] = useState("USD");
+  const [intervalID, setIntervalID]: [intervalID: NodeJS.Timer | undefined, setIntervalID: Function] = useState();
 
   const loadData = (baseCurrency: string) => {
     const apiAnswer = api(baseCurrency);
@@ -17,24 +18,30 @@ const App = () => {
       })
       .catch(error => console.log("error", error));
   }
-  useEffect(() => loadData(baseCurrency), [baseCurrency])
-  // setInterval(() => loadData(baseCurrency), 10000);
-  // useEffect(() => { setData(ANSWEROFSERVER) }, [])
+  useEffect(() => {
+    loadData(baseCurrency);
+    if (!!intervalID) { clearInterval(intervalID) };
+    const currentInterval = setInterval(() => loadData(baseCurrency), 10000);
+    setIntervalID(currentInterval);
+  }, [baseCurrency])
+
 
   const splitDataOfCurrency: [string, number][] = Object.entries(dataOfCurrency.rates);
   const currencyArray = splitDataOfCurrency.map(
-    ([name, value], index): React.ReactNode => (
-      <tr key={index}>
-        <td>{name}</td>
-        <td>{(1 / value).toFixed(2)}</td>
-      </tr>
+    ([name, value], index): object => (
+      {
+        key: index,
+        currencyCode: name,
+        baseRate: value,
+      }
     )
   )
   const baseCurrencyOptions = splitDataOfCurrency.map(
-    ([name], index): React.ReactNode => (
-      <option value={name} key={index}>
-        {name}
-      </option>
+    ([name], index): object => (
+      {
+        value: name,
+        label: name,
+      }
     )
   )
 
@@ -72,36 +79,41 @@ const api = (baseCurrency: string) => {
 
 const TableCurrency = ({ currencyArray, baseCurrency, setbaseCurrency, baseCurrencyOptions, loadData }:
   {
-    currencyArray: React.ReactNode, baseCurrency: string,
-    setbaseCurrency: Function, baseCurrencyOptions: React.ReactNode, loadData: Function
+    currencyArray: object[], baseCurrency: string,
+    setbaseCurrency: Function, baseCurrencyOptions: object[], loadData: Function
   }) => {
+
+  const tableTitles = [
+    {
+      title: 'Код валюты',
+      dataIndex: 'currencyCode',
+      key: 'currencyCode',
+    },
+    {
+      title: 'Курс в базовой валюте',
+      dataIndex: 'baseRate',
+      key: 'baseRate',
+    },
+  ];
+
 
   return (
     <div className='table-currency'>
-      <table>
-        <thead>
-          <tr>
-            <th>Код Валюты</th>
-            <th>Курс в {baseCurrency}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {currencyArray}
-        </tbody>
-      </table>
-      <div>
+      <Table dataSource={currencyArray} columns={tableTitles} />
+      <div className='right-panel'>
         <div className='base-currency-changer'>Выберите базовую валюту</div>
-        <select
-          size={10}
+        <Select
+          size="middle"
+          optionFilterProp="children"
+          placeholder="Выберите базовую валюту"
           value={baseCurrency}
-          onChange={(event) => setbaseCurrency(event.target.value)}
-        >
-          {baseCurrencyOptions}
-        </select>
+          onChange={(value) => setbaseCurrency(value)}
+          options={baseCurrencyOptions}
+        />
         <div>
-          <button onClick={() => loadData(baseCurrency)}>
+          <Button type="default" onClick={() => loadData(baseCurrency)}>
             Обновить курс валют
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -109,7 +121,7 @@ const TableCurrency = ({ currencyArray, baseCurrency, setbaseCurrency, baseCurre
   )
 }
 
-const CalculateCurrency = ({ baseCurrencyOptions }: { baseCurrencyOptions: React.ReactNode }) => {
+const CalculateCurrency = ({ baseCurrencyOptions }: { baseCurrencyOptions: object[] }) => {
   const [firstCurrency, setFirstCurrency] = useState("RUB");
   const [firstCurrencyValue, setFirstCurrencyValue] = useState(0.00);
   const [secondCurrency, setSecondCurrency] = useState("USD");
@@ -143,7 +155,7 @@ const CalculateCurrency = ({ baseCurrencyOptions }: { baseCurrencyOptions: React
       .catch(error => console.log("error", error));
   }
 
-  useEffect(() => { calculateResult() }, [firstCurrency, firstCurrencyValue, secondCurrency])
+  useEffect(() => calculateResult(), [firstCurrency, firstCurrencyValue, secondCurrency, dataOfCurrency])
   useEffect(() => loadData(secondCurrency), [secondCurrency])
   return (
     <div className='calculator-currency'>
@@ -154,26 +166,33 @@ const CalculateCurrency = ({ baseCurrencyOptions }: { baseCurrencyOptions: React
         Перевести из
       </div>
       <div>
-        <input type="number" defaultValue={firstCurrencyValue}
+        <Input type="number" defaultValue={firstCurrencyValue}
           onChange={(event) => setFirstCurrencyValue(Number(event.target.value))}
         />
-        <select
+        <Select
           value={firstCurrency}
-          onChange={(event) => setFirstCurrency(event.target.value)}
-        >
-          {baseCurrencyOptions}
-        </select>
+          onChange={(value) => setSecondCurrency(value)}
+          options={baseCurrencyOptions}
+        />
       </div>
       <div> в </div>
       <div>
-        <select
+        <Select
           value={secondCurrency}
-          onChange={(event) => setSecondCurrency(event.target.value)}
-        >
-          {baseCurrencyOptions}
-        </select>
+          onChange={(value) => setSecondCurrency(value)}
+          options={baseCurrencyOptions}
+        />
         <div className='second-currency-value'> {secondCurrencyValue.toFixed(2)} </div>
       </div>
+      <Button type="default"
+        onClick={() => {
+          const intermediateValue = secondCurrency;
+          setSecondCurrency(firstCurrency);
+          setFirstCurrency(intermediateValue);
+        }}
+      >
+        &#8596;
+      </Button>
     </div>
   )
 }
