@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Route, Switch, Redirect, Link } from "react-router-dom";
+import { BrowserRouter as Router, Route, Switch, Redirect } from "react-router-dom";
 import './App.css';
-import { Button, Table, Select, Input } from "antd";
+
+import { Nav } from './components/Nav';
+import { api } from './components/api';
+import { CalculateCurrency } from './components/CalculateCurrency';
+import { TableCurrency } from './components/TableCurrency';
 
 const App = () => {
 
@@ -9,8 +13,8 @@ const App = () => {
   const [baseCurrency, setbaseCurrency] = useState("USD");
   const [intervalID, setIntervalID]: [intervalID: NodeJS.Timer | undefined, setIntervalID: Function] = useState();
 
-  const loadData = (baseCurrency: string) => {
-    const apiAnswer = api(baseCurrency);
+  const loadData = (currentCurrency: string, setData: Function) => {
+    const apiAnswer = api(currentCurrency);
     apiAnswer
       .then(response => response.json())
       .then(result => {
@@ -18,15 +22,16 @@ const App = () => {
       })
       .catch(error => console.log("error", error));
   }
+
   useEffect(() => {
-    loadData(baseCurrency);
+    loadData(baseCurrency, setData);
     if (!!intervalID) { clearInterval(intervalID) };
-    const currentInterval = setInterval(() => loadData(baseCurrency), 10000);
+    const currentInterval = setInterval(() => loadData(baseCurrency, setData), 10000);
     setIntervalID(currentInterval);
   }, [baseCurrency])
 
-
   const splitDataOfCurrency: [string, number][] = Object.entries(dataOfCurrency.rates);
+
   const currencyArray = splitDataOfCurrency.map(
     ([name, value], index): object => (
       {
@@ -36,8 +41,9 @@ const App = () => {
       }
     )
   )
+
   const baseCurrencyOptions = splitDataOfCurrency.map(
-    ([name], index): object => (
+    ([name], ): object => (
       {
         value: name,
         label: name,
@@ -58,152 +64,10 @@ const App = () => {
           baseCurrencyOptions={baseCurrencyOptions}
           loadData={loadData}
         />} />
-        <Route path="/calculator" children={() => <CalculateCurrency baseCurrencyOptions={baseCurrencyOptions} />} />
+        <Route path="/calculator" children={() => <CalculateCurrency baseCurrencyOptions={baseCurrencyOptions} loadData={loadData} />} />
       </Switch>
     </Router>
   );
-}
-
-const api = (baseCurrency: string) => {
-
-  const url = "https://api.exchangerate.host/latest?base=" + baseCurrency;
-  const options: RequestInit = {
-    method: "GET",
-    headers: {
-      "Content-Type": "	application/json; charset=utf-8",
-    }
-  }
-
-  return fetch(url, options);
-}
-
-const TableCurrency = ({ currencyArray, baseCurrency, setbaseCurrency, baseCurrencyOptions, loadData }:
-  {
-    currencyArray: object[], baseCurrency: string,
-    setbaseCurrency: Function, baseCurrencyOptions: object[], loadData: Function
-  }) => {
-
-  const tableTitles = [
-    {
-      title: 'Код валюты',
-      dataIndex: 'currencyCode',
-      key: 'currencyCode',
-    },
-    {
-      title: 'Курс в базовой валюте',
-      dataIndex: 'baseRate',
-      key: 'baseRate',
-    },
-  ];
-
-
-  return (
-    <div className='table-currency'>
-      <Table dataSource={currencyArray} columns={tableTitles} />
-      <div className='right-panel'>
-        <div className='base-currency-changer'>Выберите базовую валюту</div>
-        <Select
-          size="middle"
-          optionFilterProp="children"
-          placeholder="Выберите базовую валюту"
-          value={baseCurrency}
-          onChange={(value) => setbaseCurrency(value)}
-          options={baseCurrencyOptions}
-        />
-        <div>
-          <Button type="default" onClick={() => loadData(baseCurrency)}>
-            Обновить курс валют
-          </Button>
-        </div>
-      </div>
-    </div>
-
-  )
-}
-
-const CalculateCurrency = ({ baseCurrencyOptions }: { baseCurrencyOptions: object[] }) => {
-  const [firstCurrency, setFirstCurrency] = useState("RUB");
-  const [firstCurrencyValue, setFirstCurrencyValue] = useState(0.00);
-  const [secondCurrency, setSecondCurrency] = useState("USD");
-  const [dataOfCurrency, setDataOfCurrency] = useState({ rates: {} });
-  const [secondCurrencyValue, setSecondCurrencyValue] = useState(0.00);
-  const splitDataOfCurrency: [string, number][] = Object.entries(dataOfCurrency.rates);
-
-  const findRate = (): number => {
-    let result = 0;
-    splitDataOfCurrency.map(
-      ([name, value]) => {
-        if (name === firstCurrency) {
-          result = 1 / value;
-        }
-      }
-    )
-    return result;
-  }
-
-  const calculateResult = () => {
-    setSecondCurrencyValue(findRate() * firstCurrencyValue);
-  }
-
-  const loadData = (secondCurrency: string) => {
-    const apiAnswer = api(secondCurrency);
-    apiAnswer
-      .then(response => response.json())
-      .then(result => {
-        setDataOfCurrency(result);
-      })
-      .catch(error => console.log("error", error));
-  }
-
-  useEffect(() => calculateResult(), [firstCurrency, firstCurrencyValue, secondCurrency, dataOfCurrency])
-  useEffect(() => loadData(secondCurrency), [secondCurrency])
-  return (
-    <div className='calculator-currency'>
-      <div>
-        Калькулятор валюты
-      </div>
-      <div>
-        Перевести из
-      </div>
-      <div>
-        <Input type="number" defaultValue={firstCurrencyValue}
-          onChange={(event) => setFirstCurrencyValue(Number(event.target.value))}
-        />
-        <Select
-          value={firstCurrency}
-          onChange={(value) => setSecondCurrency(value)}
-          options={baseCurrencyOptions}
-        />
-      </div>
-      <div> в </div>
-      <div>
-        <Select
-          value={secondCurrency}
-          onChange={(value) => setSecondCurrency(value)}
-          options={baseCurrencyOptions}
-        />
-        <div className='second-currency-value'> {secondCurrencyValue.toFixed(2)} </div>
-      </div>
-      <Button type="default"
-        onClick={() => {
-          const intermediateValue = secondCurrency;
-          setSecondCurrency(firstCurrency);
-          setFirstCurrency(intermediateValue);
-        }}
-      >
-        &#8596;
-      </Button>
-    </div>
-  )
-}
-
-const Nav = () => {
-  return (
-    <nav>
-      <Link to="/table" replace>Курс валют</Link>
-      <Link to="/calculator" replace>Калькулятор валюты</Link>
-    </nav>
-  )
 }
 
 export default App;
